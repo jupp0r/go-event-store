@@ -8,7 +8,7 @@ import (
 func TestTopic(test *testing.T) {
 	var c1, c2, c3 connection
 
-	t := NewTopic()
+	t := NewTopic(NewInMemoryPersister())
 
 	testString := []byte("foobar")
 
@@ -23,8 +23,8 @@ func TestTopic(test *testing.T) {
 	res3 := <-chan3
 
 	if !bytes.Equal(res1, testString) ||
-		!bytes.Equal(res1, testString) ||
-		!bytes.Equal(res1, testString) {
+		!bytes.Equal(res2, testString) ||
+		!bytes.Equal(res3, testString) {
 		test.Fatalf("expected %s, got %s, %s and %s", testString, res1, res2, res3)
 	}
 }
