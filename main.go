@@ -4,12 +4,14 @@ import (
 	"flag"
 	"log"
 	"net/http"
+	"strings"
 
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
 )
 
 var addr = flag.String("addr", "localhost:8080", "http service address")
+var tls = flag.String("tls", "", "tls certificate and private key, example: -tls cert.pem:key.pem")
 
 var upgrader = websocket.Upgrader{
 	CheckOrigin: func(*http.Request) bool { return true },
@@ -23,6 +25,8 @@ func subscribe(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	topic := vars["topic"]
 	c, err := upgrader.Upgrade(w, r, nil)
+	defer c.Close()
+
 	if err != nil {
 		log.Print("upgrade:", err)
 		return
@@ -30,13 +34,9 @@ func subscribe(w http.ResponseWriter, r *http.Request) {
 
 	messageChannel := hub.AddSubscriber(topic, c)
 
-	go func() {
-		for message := range messageChannel {
-			c.WriteMessage(websocket.TextMessage, message)
-		}
-	}()
-	//defer c.Close()
-
+	for message := range messageChannel {
+		c.WriteMessage(websocket.TextMessage, message)
+	}
 }
 
 func publish(w http.ResponseWriter, r *http.Request) {
@@ -47,9 +47,12 @@ func publish(w http.ResponseWriter, r *http.Request) {
 		log.Print("upgrade:", err)
 		return
 	}
-	// defer c.Close()
+	defer c.Close()
 	for {
-		_, message, _ := c.ReadMessage()
+		_, message, err := c.ReadMessage()
+		if err != nil {
+			return
+		}
 		hub.Publish(topic, string(message))
 	}
 }
@@ -60,5 +63,11 @@ func main() {
 	r := mux.NewRouter()
 	r.HandleFunc("/subscribe/{topic}", subscribe)
 	r.HandleFunc("/publish/{topic}", publish)
-	log.Fatal(http.ListenAndServe(*addr, r))
+
+	if *tls != "" {
+		parsedTls := strings.Split(*tls, ":")
+		log.Fatal(http.ListenAndServeTLS(*addr, parsedTls[0], parsedTls[1], r))
+	} else {
+		log.Fatal(http.ListenAndServe(*addr, r))
+	}
 }
