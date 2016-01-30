@@ -38,7 +38,7 @@ func (t *pubsubTopic) RemoveSubscriber(c connection) {
 }
 
 func (t *pubsubTopic) Publish(message string) {
-	fmt.Printf("publish %s", message)
+	fmt.Printf("publish %s\n", message)
 	t.Persister.Persist(message)
 	for _, subscriber := range t.subscribers {
 		go publishToSubscriber(subscriber, message)
@@ -46,6 +46,5 @@ func (t *pubsubTopic) Publish(message string) {
 }
 
 func publishToSubscriber(c chan []byte, message string) {
-	fmt.Printf("foo")
 	c <- []byte(message)
 }
