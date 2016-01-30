@@ -1,4 +1,4 @@
-# Go Event Store [![Build Status](https://travis-ci.org/jupp0r/go-event-store.svg?branch=master)](https://travis-ci.org/jupp0r/go-event-store)
+# Go Event Store [![Build Status](https://travis-ci.org/jupp0r/go-event-store.svg?branch=master)](https://travis-ci.org/jupp0r/go-event-store) [![Coverage Status](https://coveralls.io/repos/github/jupp0r/go-event-store/badge.svg?branch=master)](https://coveralls.io/github/jupp0r/go-event-store?branch=master)
 
 This service implements a persistent event store with exchangable storage backends and pubsub semantics over websocket.
 It's currently in alpha state. The API will change quite frequently.
