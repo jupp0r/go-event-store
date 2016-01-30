@@ -4,6 +4,7 @@ import (
 	"flag"
 	"log"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/gorilla/mux"
@@ -12,6 +13,7 @@ import (
 
 var addr = flag.String("addr", "localhost:8080", "http service address")
 var tls = flag.String("tls", "", "tls certificate and private key, example: -tls cert.pem:key.pem")
+var logLevel = flag.String("loglevel", "0", "log level")
 
 var upgrader = websocket.Upgrader{
 	CheckOrigin: func(*http.Request) bool { return true },
@@ -59,7 +61,13 @@ func publish(w http.ResponseWriter, r *http.Request) {
 
 func main() {
 	flag.Parse()
-	log.SetFlags(0)
+
+	logFlags, err := strconv.Atoi(*logLevel)
+	if err != nil {
+		panic("Invalid log level")
+	}
+
+	log.SetFlags(logFlags)
 	r := mux.NewRouter()
 	r.HandleFunc("/subscribe/{topic}", subscribe)
 	r.HandleFunc("/publish/{topic}", publish)
