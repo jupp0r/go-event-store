@@ -59,6 +59,13 @@ func publish(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func deleteTopic(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	topic := vars["topic"]
+
+	hub.Delete(topic)
+}
+
 func main() {
 	flag.Parse()
 
@@ -71,6 +78,7 @@ func main() {
 	r := mux.NewRouter()
 	r.HandleFunc("/subscribe/{topic}", subscribe)
 	r.HandleFunc("/publish/{topic}", publish)
+	r.HandleFunc("/topics/{topic}", deleteTopic).Methods("DELETE")
 
 	if *tls != "" {
 		parsedTls := strings.Split(*tls, ":")

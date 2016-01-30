@@ -4,6 +4,7 @@ type Hub interface {
 	AddSubscriber(topic string, connection connection) chan []byte
 	RemoveSubscriber(topic string, connection connection)
 	Publish(topic, message string)
+	Delete(topic string)
 }
 
 type pubsubHub struct {
@@ -36,6 +37,10 @@ func (h *pubsubHub) Publish(topic, message string) {
 	}
 
 	t.Publish(message)
+}
+
+func (h *pubsubHub) Delete(topic string) {
+	delete(h.topics, topic)
 }
 
 func (h *pubsubHub) fetchOrCreateTopic(topic string) Topic {
