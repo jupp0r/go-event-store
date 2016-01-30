@@ -11,7 +11,7 @@ type inMemoryPersister struct {
 
 func NewInMemoryPersister() Persister {
 	return &inMemoryPersister{
-		make([]string, 1000),
+		make([]string, 0),
 	}
 }
 
