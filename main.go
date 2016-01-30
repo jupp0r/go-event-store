@@ -11,7 +11,9 @@ import (
 
 var addr = flag.String("addr", "localhost:8080", "http service address")
 
-var upgrader = websocket.Upgrader{} // use default options
+var upgrader = websocket.Upgrader{
+	CheckOrigin: func(*http.Request) bool { return true },
+}
 
 var hub = NewHub()
 
@@ -40,27 +42,38 @@ func echo(w http.ResponseWriter, r *http.Request) {
 }
 
 func subscribe(w http.ResponseWriter, r *http.Request) {
-	// vars := mux.Vars(r)
-	// topic := vars["topic"]
+	vars := mux.Vars(r)
+	topic := vars["topic"]
 	c, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		log.Print("upgrade:", err)
 		return
 	}
-	defer c.Close()
+
+	messageChannel := hub.AddSubscriber(topic, c)
+
+	go func() {
+		for message := range messageChannel {
+			c.WriteMessage(websocket.TextMessage, message)
+		}
+	}()
+	//defer c.Close()
 
 }
 
 func publish(w http.ResponseWriter, r *http.Request) {
-	// vars := mux.Vars(r)
-	// topic := vars["topic"]
+	vars := mux.Vars(r)
+	topic := vars["topic"]
 	c, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		log.Print("upgrade:", err)
 		return
 	}
-	defer c.Close()
-
+	// defer c.Close()
+	for {
+		_, message, _ := c.ReadMessage()
+		hub.Publish(topic, string(message))
+	}
 }
 
 func main() {
