@@ -1,11 +1,11 @@
 package main
 
-import "fmt"
+import log "gopkg.in/inconshreveable/log15.v2"
 
 type Topic interface {
-	AddSubscriber(connection) chan []byte
-	RemoveSubscriber(connection)
-	Publish(string)
+	AddSubscriber(connection, log.Logger) chan []byte
+	RemoveSubscriber(connection, log.Logger)
+	Publish(string, log.Logger)
 }
 
 type pubsubTopic struct {
@@ -13,14 +13,16 @@ type pubsubTopic struct {
 	Persister
 }
 
-func NewTopic(p Persister) Topic {
+func NewTopic(p Persister, log log.Logger) Topic {
+	log.Info("Create topic")
 	return &pubsubTopic{
 		make(map[connection]chan []byte),
 		p,
 	}
 }
 
-func (t *pubsubTopic) AddSubscriber(c connection) chan []byte {
+func (t *pubsubTopic) AddSubscriber(c connection, log log.Logger) chan []byte {
+	log.Info("Add subscriber")
 	subscriberChannel := make(chan []byte)
 
 	go func() {
@@ -33,12 +35,13 @@ func (t *pubsubTopic) AddSubscriber(c connection) chan []byte {
 	return t.subscribers[c]
 }
 
-func (t *pubsubTopic) RemoveSubscriber(c connection) {
+func (t *pubsubTopic) RemoveSubscriber(c connection, log log.Logger) {
+	log.Info("Remove subscriber")
 	delete(t.subscribers, c)
 }
 
-func (t *pubsubTopic) Publish(message string) {
-	fmt.Printf("publish %s\n", message)
+func (t *pubsubTopic) Publish(message string, log log.Logger) {
+	log.Info("Publish", "message", message)
 	t.Persister.Persist(message)
 	for _, subscriber := range t.subscribers {
 		go publishToSubscriber(subscriber, message)
