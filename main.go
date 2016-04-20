@@ -114,7 +114,10 @@ func main() {
 
 	if *tls != "" {
 		parsedTls := strings.Split(*tls, ":")
-		http.ListenAndServeTLS(*addr, parsedTls[0], parsedTls[1], r)
+		err := http.ListenAndServeTLS(*addr, parsedTls[0], parsedTls[1], r)
+		if err != nil {
+			panic(err)
+		}
 	} else {
 		http.ListenAndServe(*addr, r)
 	}
