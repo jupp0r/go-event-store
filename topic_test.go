@@ -2,13 +2,14 @@ package main
 
 import (
 	"bytes"
+	"strconv"
 	"testing"
 
 	log "gopkg.in/inconshreveable/log15.v2"
 )
 
 func TestTopic(test *testing.T) {
-	var c1, c2, c3 connection
+	c1, c2, c3 := connection(strconv.Itoa(1)), connection(strconv.Itoa(2)), connection(strconv.Itoa(3))
 
 	logger := log.New()
 
@@ -16,9 +17,9 @@ func TestTopic(test *testing.T) {
 
 	testString := []byte("foobar")
 
-	chan1 := t.AddSubscriber(&c1, logger)
-	chan2 := t.AddSubscriber(&c2, logger)
-	chan3 := t.AddSubscriber(&c3, logger)
+	chan1 := t.AddSubscriber(c1, logger)
+	chan2 := t.AddSubscriber(c2, logger)
+	chan3 := t.AddSubscriber(c3, logger)
 
 	t.Publish(string(testString), logger)
 

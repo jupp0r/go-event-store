@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"net/http"
 	"strings"
 
@@ -19,7 +20,7 @@ var upgrader = websocket.Upgrader{
 
 var hub = NewHub()
 
-type connection interface{}
+type connection string
 
 func subscribe(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
@@ -27,20 +28,22 @@ func subscribe(w http.ResponseWriter, r *http.Request) {
 	c, err := upgrader.Upgrade(w, r, nil)
 	defer c.Close()
 
+	conn := connection(fmt.Sprintf("%p", c))
+
+	logger := log.New(
+		log.Ctx{
+			"topic":      topic,
+			"remote":     c.RemoteAddr().String(),
+			"connection": conn,
+		},
+	)
+
 	if err != nil {
-		log.Error("upgrade:", err)
+		logger.Error("upgrade:", err)
 		return
 	}
 
-	messageChannel := hub.AddSubscriber(
-		topic,
-		c,
-		log.New(
-			log.Ctx{
-				"remote": c.RemoteAddr().String(),
-			},
-		),
-	)
+	messageChannel := hub.AddSubscriber(topic, conn, logger)
 
 	for message := range messageChannel {
 		c.WriteMessage(websocket.TextMessage, message)
@@ -52,9 +55,13 @@ func publish(w http.ResponseWriter, r *http.Request) {
 	topic := vars["topic"]
 	c, err := upgrader.Upgrade(w, r, nil)
 
+	conn := connection(fmt.Sprintf("%p", c))
+
 	logger := log.New(
 		log.Ctx{
-			"remote": c.RemoteAddr().String(),
+			"topic":      topic,
+			"remote":     c.RemoteAddr().String(),
+			"connection": conn,
 		},
 	)
 
@@ -81,13 +88,16 @@ func deleteTopic(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	topic := vars["topic"]
 
+	logger := log.New(
+		log.Ctx{
+			"topic":  topic,
+			"remote": r.RemoteAddr,
+		},
+	)
+
 	hub.Delete(
 		topic,
-		log.New(
-			log.Ctx{
-				"remote": r.RemoteAddr,
-			},
-		),
+		logger,
 	)
 }
 

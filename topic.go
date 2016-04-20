@@ -9,21 +9,28 @@ type Topic interface {
 }
 
 type pubsubTopic struct {
-	subscribers map[connection]chan []byte
+	subscribers       map[connection]chan []byte
+	publishingChannel chan string
 	Persister
 }
 
 func NewTopic(p Persister, log log.Logger) Topic {
 	log.Info("Create topic")
-	return &pubsubTopic{
+
+	topic := &pubsubTopic{
 		make(map[connection]chan []byte),
+		make(chan string),
 		p,
 	}
+
+	go topic.distribute()
+
+	return topic
 }
 
 func (t *pubsubTopic) AddSubscriber(c connection, log log.Logger) chan []byte {
 	log.Info("Add subscriber")
-	subscriberChannel := make(chan []byte)
+	subscriberChannel := make(chan []byte, 1000)
 
 	go func() {
 		for _, message := range t.Persister.Read() {
@@ -42,12 +49,22 @@ func (t *pubsubTopic) RemoveSubscriber(c connection, log log.Logger) {
 
 func (t *pubsubTopic) Publish(message string, log log.Logger) {
 	log.Info("Publish", "message", message)
-	t.Persister.Persist(message)
-	for _, subscriber := range t.subscribers {
-		go publishToSubscriber(subscriber, message)
+	t.publishingChannel <- message
+}
+
+func (t *pubsubTopic) distribute() {
+	for message := range t.publishingChannel {
+		t.publishToSubscribers(message)
 	}
 }
 
-func publishToSubscriber(c chan []byte, message string) {
+func (t *pubsubTopic) publishToSubscribers(message string) {
+	for c, subscriber := range t.subscribers {
+		log.Info("Publishing", "message", message, "connection", c)
+		publishToSubscriber(message, subscriber)
+	}
+}
+
+func publishToSubscriber(message string, c chan []byte) {
 	c <- []byte(message)
 }

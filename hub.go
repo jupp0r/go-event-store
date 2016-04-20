@@ -3,8 +3,8 @@ package main
 import log "gopkg.in/inconshreveable/log15.v2"
 
 type Hub interface {
-	AddSubscriber(topic string, connection connection, logger log.Logger) chan []byte
-	RemoveSubscriber(topic string, connection connection, logger log.Logger)
+	AddSubscriber(topic string, conn connection, logger log.Logger) chan []byte
+	RemoveSubscriber(topic string, conn connection, logger log.Logger)
 	Publish(topic, message string, logger log.Logger)
 	Delete(topic string, logger log.Logger)
 }
@@ -21,35 +21,38 @@ func NewHub() Hub {
 	}
 }
 
-func (h *pubsubHub) AddSubscriber(topic string, connection connection, logger log.Logger) chan []byte {
+func (h *pubsubHub) AddSubscriber(topic string, conn connection, logger log.Logger) chan []byte {
 	t := h.fetchOrCreateTopic(topic, logger)
-	return t.AddSubscriber(connection, logger.New(log.Ctx{"topic": topic}))
+	return t.AddSubscriber(conn, logger)
 }
 
-func (h *pubsubHub) RemoveSubscriber(topic string, connection connection, logger log.Logger) {
-	t := h.fetchOrCreateTopic(topic, logger.New(log.Ctx{"topic": topic}))
-	t.RemoveSubscriber(connection, logger.New(log.Ctx{"topic": topic}))
+func (h *pubsubHub) RemoveSubscriber(topic string, conn connection, logger log.Logger) {
+	t := h.fetchOrCreateTopic(topic, logger)
+	t.RemoveSubscriber(conn, logger)
 }
 
 func (h *pubsubHub) Publish(topic, message string, logger log.Logger) {
 	t, ok := h.topics[topic]
 	if !ok {
-		t = NewTopic(NewInMemoryPersister(), logger.New(log.Ctx{"topic": topic}))
+		t = NewTopic(
+			NewInMemoryPersister(),
+			logger,
+		)
 		h.topics[topic] = t
 	}
 
-	t.Publish(message, logger.New(log.Ctx{"topic": topic}))
+	t.Publish(message, logger)
 }
 
 func (h *pubsubHub) Delete(topic string, logger log.Logger) {
-	logger.New(log.Ctx{"topic": topic}).Info("Deleted")
+	logger.Info("Deleted")
 	delete(h.topics, topic)
 }
 
 func (h *pubsubHub) fetchOrCreateTopic(topic string, logger log.Logger) Topic {
 	_, ok := h.topics[topic]
 	if !ok {
-		t := NewTopic(NewInMemoryPersister(), logger.New(log.Ctx{"topic": topic}))
+		t := NewTopic(NewInMemoryPersister(), logger)
 		h.topics[topic] = t
 	}
 
