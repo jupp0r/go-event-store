@@ -50,6 +50,34 @@ func subscribe(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func dump(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	topic := vars["topic"]
+	c, err := upgrader.Upgrade(w, r, nil)
+	defer c.Close()
+
+	conn := connection(fmt.Sprintf("%p", c))
+
+	logger := log.New(
+		log.Ctx{
+			"topic":      topic,
+			"remote":     c.RemoteAddr().String(),
+			"connection": conn,
+		},
+	)
+
+	if err != nil {
+		logger.Error("upgrade:", err)
+		return
+	}
+
+	messages := hub.Dump(topic)
+
+	for _, message := range messages {
+		c.WriteMessage(websocket.TextMessage, []byte(message))
+	}
+}
+
 func publish(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	topic := vars["topic"]
@@ -107,6 +135,7 @@ func main() {
 	r := mux.NewRouter()
 	r.HandleFunc("/subscribe/{topic}", subscribe)
 	r.HandleFunc("/publish/{topic}", publish)
+	r.HandleFunc("/dump/{topic}", dump)
 	r.HandleFunc("/topics/{topic}", deleteTopic).Methods("DELETE")
 
 	logger := log.New(log.Ctx{"addr": *addr})

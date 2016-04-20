@@ -6,6 +6,7 @@ type Topic interface {
 	AddSubscriber(connection, log.Logger) chan []byte
 	RemoveSubscriber(connection, log.Logger)
 	Publish(string, log.Logger)
+	Dump() []string
 }
 
 type addMessage struct {
@@ -110,4 +111,8 @@ func (t *pubsubTopic) publishToSubscribers(message string) {
 
 func publishToSubscriber(message string, c chan []byte) {
 	c <- []byte(message)
+}
+
+func (t *pubsubTopic) Dump() []string {
+	return t.Read()
 }

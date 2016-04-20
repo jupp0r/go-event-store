@@ -7,6 +7,7 @@ type Hub interface {
 	RemoveSubscriber(topic string, conn connection, logger log.Logger)
 	Publish(topic, message string, logger log.Logger)
 	Delete(topic string, logger log.Logger)
+	Dump(topic string) []string
 }
 
 type pubsubHub struct {
@@ -57,4 +58,13 @@ func (h *pubsubHub) fetchOrCreateTopic(topic string, logger log.Logger) Topic {
 	}
 
 	return h.topics[topic]
+}
+
+func (h *pubsubHub) Dump(topic string) []string {
+	t, ok := h.topics[topic]
+	if !ok {
+		return []string{}
+	}
+
+	return t.Dump()
 }

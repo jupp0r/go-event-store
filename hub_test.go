@@ -51,3 +51,18 @@ func TestPubSubHub(t *testing.T) {
 		}
 	}
 }
+
+func TestPubSubHubDump(t *testing.T) {
+	h := NewHub()
+	logger := log.New()
+	h.Publish("foo", "bar", logger)
+	h.Publish("foo", "baz", logger)
+
+	dump := h.Dump("foo")
+	if dump[0] != "bar" {
+		t.Fatalf("Expected bar, got %s", dump[0])
+	}
+	if dump[1] != "baz" {
+		t.Fatalf("Expected baz, got %s", dump[1])
+	}
+}
