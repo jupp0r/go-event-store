@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"net/http"
@@ -78,6 +79,22 @@ func dump(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func snapshot(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	topic := vars["topic"]
+
+	messages := hub.Dump(topic)
+
+	header := w.Header()
+	header.Set("Content-Type", "application/json")
+	jsonMessages, err := json.Marshal(messages)
+	if err != nil {
+		w.WriteHeader(500)
+		return
+	}
+	w.Write(jsonMessages)
+}
+
 func publish(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	topic := vars["topic"]
@@ -136,6 +153,7 @@ func main() {
 	r.HandleFunc("/subscribe/{topic}", subscribe)
 	r.HandleFunc("/publish/{topic}", publish)
 	r.HandleFunc("/dump/{topic}", dump)
+	r.HandleFunc("/snapshot/{topic}", snapshot).Methods("GET")
 	r.HandleFunc("/topics/{topic}", deleteTopic).Methods("DELETE")
 
 	logger := log.New(log.Ctx{"addr": *addr})
