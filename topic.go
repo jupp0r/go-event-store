@@ -12,17 +12,25 @@ type Topic interface {
 type addMessage struct {
 	Conn    connection
 	Channel chan []byte
+	ready   chan struct{}
+}
+
+type removeMessage struct {
+	Conn  connection
+	ready chan struct{}
 }
 
 type publishMessage struct {
 	Message string
+	ready   chan struct{}
 }
 
 type pubsubTopic struct {
 	subscribers    map[connection]chan []byte
 	publishChannel chan publishMessage
 	addChannel     chan addMessage
-	removeChannel  chan connection
+	removeChannel  chan removeMessage
+	readChannel    chan chan []string
 	Persister
 }
 
@@ -33,7 +41,8 @@ func NewTopic(p Persister, log log.Logger) Topic {
 		subscribers:    make(map[connection]chan []byte),
 		publishChannel: make(chan publishMessage),
 		addChannel:     make(chan addMessage),
-		removeChannel:  make(chan connection),
+		removeChannel:  make(chan removeMessage),
+		readChannel:    make(chan chan []string),
 		Persister:      p,
 	}
 
@@ -45,20 +54,24 @@ func NewTopic(p Persister, log log.Logger) Topic {
 func (t *pubsubTopic) AddSubscriber(c connection, log log.Logger) chan []byte {
 	log.Info("Add subscriber")
 	subscriberChannel := make(chan []byte, 10000)
-
-	t.addChannel <- addMessage{c, subscriberChannel}
-
+	ready := make(chan struct{})
+	t.addChannel <- addMessage{c, subscriberChannel, ready}
+	<-ready
 	return subscriberChannel
 }
 
 func (t *pubsubTopic) RemoveSubscriber(c connection, log log.Logger) {
 	log.Info("Remove subscriber")
-	t.removeChannel <- c
+	ready := make(chan struct{})
+	t.removeChannel <- removeMessage{c, ready}
+	<-ready
 }
 
 func (t *pubsubTopic) Publish(message string, log log.Logger) {
 	log.Info("Publish", "message", message)
-	t.publishChannel <- publishMessage{message}
+	ready := make(chan struct{})
+	t.publishChannel <- publishMessage{message, ready}
+	<-ready
 }
 
 func (t *pubsubTopic) run() {
@@ -67,10 +80,15 @@ func (t *pubsubTopic) run() {
 		case m := <-t.publishChannel:
 			t.publishToSubscribers(m.Message)
 			t.Persist(m.Message)
+			m.ready <- struct{}{}
 		case add := <-t.addChannel:
 			t.addSubscriber(add)
-		case conn := <-t.removeChannel:
-			t.removeSubscriber(conn)
+			add.ready <- struct{}{}
+		case remove := <-t.removeChannel:
+			t.removeSubscriber(remove.Conn)
+			remove.ready <- struct{}{}
+		case read := <-t.readChannel:
+			read <- t.Read()
 		}
 	}
 }
@@ -98,5 +116,8 @@ func publishToSubscriber(message string, c chan []byte) {
 }
 
 func (t *pubsubTopic) Dump() []string {
-	return t.Read()
+	result := make(chan []string)
+	t.readChannel <- result
+	res := <-result
+	return res
 }

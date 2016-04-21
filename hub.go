@@ -66,5 +66,6 @@ func (h *pubsubHub) Dump(topic string) []string {
 		return []string{}
 	}
 
-	return t.Dump()
+	res := t.Dump()
+	return res
 }

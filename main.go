@@ -74,7 +74,7 @@ func dump(w http.ResponseWriter, r *http.Request) {
 	messages := hub.Dump(topic)
 
 	for _, message := range messages {
-		c.WriteMessage(websocket.TextMessage, []byte(message))
+		c.WriteJSON([]byte(message))
 	}
 }
 

@@ -35,7 +35,7 @@ func (p *inMemoryPersister) run() {
 			log.Info("persisting", "message", message)
 			p.messages = append(p.messages, message)
 		case read := <-p.readChannel:
-			log.Info("writing persisted messages", "num", len(p.messages))
+			log.Info("writing persisted messages", "messages", p.messages)
 			read <- p.messages
 		case <-p.closeChannel:
 			return
