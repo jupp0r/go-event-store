@@ -146,15 +146,23 @@ func deleteTopic(w http.ResponseWriter, r *http.Request) {
 	)
 }
 
+func addDefaultHeaders(fn http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		fn(w, r)
+	}
+}
+
 func main() {
 	flag.Parse()
 
 	r := mux.NewRouter()
-	r.HandleFunc("/subscribe/{topic}", subscribe)
-	r.HandleFunc("/publish/{topic}", publish)
-	r.HandleFunc("/dump/{topic}", dump)
-	r.HandleFunc("/snapshot/{topic}", snapshot).Methods("GET")
-	r.HandleFunc("/topics/{topic}", deleteTopic).Methods("DELETE")
+
+	r.HandleFunc("/subscribe/{topic}", addDefaultHeaders(subscribe))
+	r.HandleFunc("/publish/{topic}", addDefaultHeaders(publish))
+	r.HandleFunc("/dump/{topic}", addDefaultHeaders(dump))
+	r.HandleFunc("/snapshot/{topic}", addDefaultHeaders(snapshot)).Methods("GET")
+	r.HandleFunc("/topics/{topic}", addDefaultHeaders(deleteTopic)).Methods("DELETE")
 
 	logger := log.New(log.Ctx{"addr": *addr})
 	logger.Info("Start listening")
