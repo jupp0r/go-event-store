@@ -12,20 +12,17 @@ type Topic interface {
 type addMessage struct {
 	Conn    connection
 	Channel chan []byte
-	Ready   chan struct{}
 }
 
 type publishMessage struct {
 	Message string
-	Ready   chan struct{}
 }
 
 type pubsubTopic struct {
-	subscribers       map[connection]chan []byte
-	publishChannel    chan publishMessage
-	addChannel        chan addMessage
-	removeChannel     chan connection
-	enableLiveChannel chan addMessage
+	subscribers    map[connection]chan []byte
+	publishChannel chan publishMessage
+	addChannel     chan addMessage
+	removeChannel  chan connection
 	Persister
 }
 
@@ -33,12 +30,11 @@ func NewTopic(p Persister, log log.Logger) Topic {
 	log.Info("Create topic")
 
 	topic := &pubsubTopic{
-		subscribers:       make(map[connection]chan []byte),
-		publishChannel:    make(chan publishMessage),
-		addChannel:        make(chan addMessage),
-		removeChannel:     make(chan connection),
-		enableLiveChannel: make(chan addMessage),
-		Persister:         p,
+		subscribers:    make(map[connection]chan []byte),
+		publishChannel: make(chan publishMessage),
+		addChannel:     make(chan addMessage),
+		removeChannel:  make(chan connection),
+		Persister:      p,
 	}
 
 	go topic.run()
@@ -48,12 +44,10 @@ func NewTopic(p Persister, log log.Logger) Topic {
 
 func (t *pubsubTopic) AddSubscriber(c connection, log log.Logger) chan []byte {
 	log.Info("Add subscriber")
-	subscriberChannel := make(chan []byte, 1000)
-	ready := make(chan struct{})
+	subscriberChannel := make(chan []byte, 10000)
 
-	t.addChannel <- addMessage{c, subscriberChannel, ready}
+	t.addChannel <- addMessage{c, subscriberChannel}
 
-	<-ready
 	return subscriberChannel
 }
 
@@ -64,9 +58,7 @@ func (t *pubsubTopic) RemoveSubscriber(c connection, log log.Logger) {
 
 func (t *pubsubTopic) Publish(message string, log log.Logger) {
 	log.Info("Publish", "message", message)
-	ready := make(chan struct{})
-	t.publishChannel <- publishMessage{message, ready}
-	<-ready
+	t.publishChannel <- publishMessage{message}
 }
 
 func (t *pubsubTopic) run() {
@@ -75,30 +67,22 @@ func (t *pubsubTopic) run() {
 		case m := <-t.publishChannel:
 			t.publishToSubscribers(m.Message)
 			t.Persist(m.Message)
-			m.Ready <- struct{}{}
 		case add := <-t.addChannel:
-			go t.sendSubscriberHistory(add)
-		case add := <-t.enableLiveChannel:
-			t.enableLiveUpdates(add)
+			t.addSubscriber(add)
 		case conn := <-t.removeChannel:
 			t.removeSubscriber(conn)
 		}
 	}
 }
 
-func (t *pubsubTopic) sendSubscriberHistory(a addMessage) {
-	a.Ready <- struct{}{}
-	for _, message := range t.Persister.Read() {
-		a.Channel <- []byte(message)
-	}
-	t.enableLiveChannel <- a
-}
-
-func (t *pubsubTopic) enableLiveUpdates(a addMessage) {
-	t.subscribers[a.Conn] = a.Channel
+func (t *pubsubTopic) addSubscriber(a addMessage) {
+	streamInput := make(chan []byte)
+	t.subscribers[a.Conn] = streamInput
+	go RunStreamer(t.Persister.Read(), streamInput, a.Channel)
 }
 
 func (t *pubsubTopic) removeSubscriber(conn connection) {
+	close(t.subscribers[conn])
 	delete(t.subscribers, conn)
 }
 
