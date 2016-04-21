@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"flag"
 	"fmt"
 	"net/http"
@@ -87,12 +86,10 @@ func snapshot(w http.ResponseWriter, r *http.Request) {
 
 	header := w.Header()
 	header.Set("Content-Type", "application/json")
-	jsonMessages, err := json.Marshal(messages)
-	if err != nil {
-		w.WriteHeader(500)
-		return
-	}
-	w.Write(jsonMessages)
+
+	jsonMessages := fmt.Sprintf("[%s]", strings.Join(messages, ","))
+
+	w.Write([]byte(jsonMessages))
 }
 
 func publish(w http.ResponseWriter, r *http.Request) {
