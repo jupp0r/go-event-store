@@ -1,12 +1,29 @@
+sudo: required
+services:
+- docker
 language: go
 go:
-  - 1.6
+- 1.6
 before_install:
-  - go get github.com/mattn/goveralls
-  - go get golang.org/x/tools/cmd/cover
+- go get github.com/mattn/goveralls
+- go get golang.org/x/tools/cmd/cover
 script:
-  - $HOME/gopath/bin/goveralls -service=travis-ci
+- "$HOME/gopath/bin/goveralls -service=travis-ci"
+- "CGO_ENABLED=0 go build -a -tags netgo --ldflags '-extldflags \"-static\"' ./..."
+- file go-event-store
 
+after_success:
+  - docker login -e "$DOCKER_EMAIL" -u "$DOCKER_USERNAME" -p "$DOCKER_PASSWORD"
+  - export TAG=`if [ "$TRAVIS_BRANCH" == "master" ]; then echo "latest"; else echo $TRAVIS_BRANCH ; fi`
+  - docker build -f Dockerfile -t $REPO:$COMMIT .
+  - docker tag $REPO:$COMMIT $REPO:$TAG
+  - docker tag $REPO:$COMMIT $REPO:travis-$TRAVIS_BUILD_NUMBER
+  - docker push $REPO
 env:
   global:
-    secure: mwrjH1WwJ8c8w4JZWSs8boMhwx3t4bx6KqYkoxEPao9UvmaUTQK9ThpADmGzLPxPi0NQwOcJp1l5/XhSCj68Sj0GipI8PR4OnVlgdqGYU+XI+2QcwuL2BtxcDZBFijBIU07lqH6RealvRqGZhNfZHtklmg9aAdxRZPGR9MEARMPPVDZaBE1DbH9gsz1/ZFUWKrfXswgqdBKHxOwPkNc19uxSmmkSBuALb4LqBBxTvgT58AlJDNSc72JqzOPs3N4Zn/sH3jUbbWNt47oVTPkTan34driKWuqoZGy9oUePEE0kNzabEFSW1XlOYX7zJLuuGRZ7nXOdv5Hxs/Z/7xn8CGPxGgFl7RS0fXDBKeXn1qb3OhglzAZFK9CK7BV9oOamKiv37DHO7YDeXxYzNXM6FUTZhR4THGPPSXWfG+Rr+PPa9Y+M3IxXrNWc7pS85gUud3USfQ/bPc7EvM0T/gOBItStQC44AeHAeh2+hp+iesRc2rubdhIec+zjunRtcuF7AhUnCry/NnpGCY0P83ceruzwMjjOMgnFDB2DVpB6gVHvDWmNM+HsE5Sxmz5v9yaZzq8CmM368onqmxJEXJyNthIAdWIob3kZlOP1dsjoOpS4nS8tNvrx/ZAsrbPyT9flSuY9qg5O1486DtKIB/bhOVbv3Bk+hvrOWQOYtJlp9+I=
+  - secure: mwrjH1WwJ8c8w4JZWSs8boMhwx3t4bx6KqYkoxEPao9UvmaUTQK9ThpADmGzLPxPi0NQwOcJp1l5/XhSCj68Sj0GipI8PR4OnVlgdqGYU+XI+2QcwuL2BtxcDZBFijBIU07lqH6RealvRqGZhNfZHtklmg9aAdxRZPGR9MEARMPPVDZaBE1DbH9gsz1/ZFUWKrfXswgqdBKHxOwPkNc19uxSmmkSBuALb4LqBBxTvgT58AlJDNSc72JqzOPs3N4Zn/sH3jUbbWNt47oVTPkTan34driKWuqoZGy9oUePEE0kNzabEFSW1XlOYX7zJLuuGRZ7nXOdv5Hxs/Z/7xn8CGPxGgFl7RS0fXDBKeXn1qb3OhglzAZFK9CK7BV9oOamKiv37DHO7YDeXxYzNXM6FUTZhR4THGPPSXWfG+Rr+PPa9Y+M3IxXrNWc7pS85gUud3USfQ/bPc7EvM0T/gOBItStQC44AeHAeh2+hp+iesRc2rubdhIec+zjunRtcuF7AhUnCry/NnpGCY0P83ceruzwMjjOMgnFDB2DVpB6gVHvDWmNM+HsE5Sxmz5v9yaZzq8CmM368onqmxJEXJyNthIAdWIob3kZlOP1dsjoOpS4nS8tNvrx/ZAsrbPyT9flSuY9qg5O1486DtKIB/bhOVbv3Bk+hvrOWQOYtJlp9+I=
+  - secure: n3Hfo33VYZnikxtmaoxFWCWoBqgZnywxyRQ85cKtsvIFxOLput/WVqHjQv1jHzKH6tRfc2mMbpgmKNZNpqe7V0z3GTY0OM9HAQYDAfKJGMHVbqsCsZBeBNJXCp0mR4vN1KGlMa05/EzehE2LsUw5YBOg8ZZkYB8GdZ1QyhJHkehulzJqfftMMq+/hUA+zcJh/8nHyq6Ddb5NbO44TcafRds/gKCFajvCLGwc3jW74I0srPfKvxeMa8Vr3kt8eTk24XNAXU/1Gk3m++y3CL5pwvADErNe3YeNCg1p0kSQ26q36VKPNbZax5Wc9Nt/7dGEBheKbnXMio40rSXGKr+QDhPj0OImfcyz36Ei46bEliiLEiWMeuUgCpqlcKcEkWTw1nlK0MByElSF9AnTCQY09TcN9o/7HeTJ18U1Sd585MijmR1xbAMqOpNMwYS70t/ybrjFoxvicyGgNMySy1FYDma7jUGgIrmUfamdtfD+qgf5Jcl8jUlUZq0DQnc71ZmWq9wRW9d63Fx7H0EcqqNwoOzZJ8BcdDIYHMeRw3Y6Raqvb1DELrkZtlIDvQSlRxFxAmZivP1HtnO4c6uZFrdpR8idTOeC4fRidq2taIdQ2eKyYoKODBdnPz97HH9FOUpISdLnQCf5FBhA7hQUvA9Eln8JCBtldMk4YMDqrxUlaZk=
+  - secure: qZOy5hbshGgFXBnzoS/7c9bHWfWfW0Rv/J/1wBKgrWx0agWn5YmlnPyC9VW8d/j2NmJQFEOcA8oCklwRcyWWU5ndnQrAKcABPKLtc+SCIrWabozzgYuXyD+dUOii4NXjqI2rxk5HKdiJ6KFfIeUhk6m/SZ2yQCrQEF+DHIfFPyE0ESIRvAID+pjdHWs/6eNveUt6oQ3RZxG/K4zUMO8uI8ybpR3Rx/ypXRK/mQMoBq1DxyB0uCTyQ2do39PgM7hg6BFgFnsTr1YoCFLs1TyL/2fZ6Bczj4KkRXxUu4pwfF7DfMgpHpNEVs3dTQSl3zMZPZePosJbbmd/rKeVVKPh3b4hWcp4CnGTfDjPcbSVxgw7kG55RD2KZAt+vQfrNJl0EY7drUSjGZupa57PK6R2yKl0td41q+cFQftqnA2St7uRaQ7oQ6rPG1cPwZSh7OHdTVdkYL0abguJtO3eOGXaVpkv6bR/GNR1SKsDDKnoHGp3kh98F5mK0P5FrShkK49L9qewgCLeI9YKvpbc+9xX+eFHse2hPzrTZP6eF0YqWM7vua4iOP2zzDFHhCP9tInhpijw3d65Z8Iftwu1yw0QZKQAJvrJzlNnvplz0UxC/oLdG/s2czgx0ZpKucQqkZi9Gw/GqkHQo6W1qJqdWE0rls6mVICuEFjzrg5m2CZkx24=
+  - secure: sFvO8b/OfAjGwiOVmLdOSMDxZlt7cNaq8Z62HYLQcDqNBRJH8x8g+lTbn4AjIZyYMQp5xmiLAU0ERSzSFHLps8WBoucQdJtVPdJKICt4SNL6CQ94P3RQRRqkWBFvvrMiM655fjkcbvetWDp1XeWuU+zQJOGmKiZLhERn0WbkfEcte2nsbjFE0mOO3aJOyXD+GzgtCZa4EHVOFe0NMExEVvVECFc+tDYke8JbpbSVdbni6zjBgHM5v/InsxGWKHdvoNtOmRXQB3zKgmWHQGuOoHADzsflu6dbqeAacWOc3yWDltyTVArNe6fZDnRbK0ye7NbUELBq73mcgufF/N7zZAKf9qQOq8uiMeUMaMUNRpgXIteFCkxcs1iFMMZmp8CIZWe7EQP6DGsx34TKy1mzYNa0jEEKo51ApBRImHsPBtyy4IkU054+cAp4ee/8/i6fCiVpTgLsg4UWHLZqxTuDaekpfjaISKHfcR4HwluDQEpheeyN/5bHkqieoOLUxPae0wzbJwjLrwANvYFW4e4Osg8/xf3phaQApT+UrZx+NGzu7YE0cBVohMNEmXwvP98pvKZSbQSHcY9ttgIrfErlDvIFJFDOFPoy3qUv4PdX3oiIQ9wawVH+wpCHfJTI3CL1FKe5ntAsVRNDFShXMoTZMy4aTklPvqGyVC1Tj9CPR7k=
+  - REPO=jupp0r/go-event-store
+  - COMMIT=${TRAVIS_COMMIT::8}
